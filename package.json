@@ -1,0 +1,19 @@
+{
+  "name": "oop-in-blockly",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "@blockly/block-shareable-procedures": "^4.1.4",
+    "@blockly/dev-tools": "^7.1.9",
+    "blockly": "^10.4.3"
+  }
+}

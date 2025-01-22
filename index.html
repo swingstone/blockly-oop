@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OOP in Blockly</title>
+
+  <!-- Load Blockly core -->
+  <script src="./node_modules/blockly/blockly_compressed.js"></script>
+  <!-- Load the default blocks -->
+  <script src="./node_modules/blockly/blocks_compressed.js"></script>
+  <!-- Load a generator -->
+  <script src="./node_modules/blockly/javascript_compressed.js"></script>
+  <!-- Load a message file -->
+  <script src="./node_modules/blockly/msg/en.js"></script>
+  <!-- Load an interpreter -->
+  <script src="./plugins/acorn.js"></script>
+  <script src="./plugins/interpreter.js"></script>
+  <!-- Custom context menu options -->
+  <script src="./plugins/context-menu-options.js" type="module"></script>
+
+  <!-- Load custom blocks -->
+  <script src="./custom_blocks/lists_push.js" type="module"></script>
+  <script src="./custom_blocks/oop_class.js" type="module"></script>
+  <script src="./custom_blocks/oop_create.js" type="module"></script>
+  <script src="./custom_blocks/oop_getnoreturn_variable.js" type="module"></script>
+  <script src="./custom_blocks/oop_getreturn_variable.js" type="module"></script>
+  <script src="./custom_blocks/oop_methods.js" type="module"></script>
+  <script src="./custom_blocks/oop_method_return.js" type="module"></script>
+  <script src="./custom_blocks/oop_set_variable.js" type="module"></script>
+  <script src="./custom_blocks/oop_this.js" type="module"></script>
+  <script src="./custom_blocks/variables_define.js" type="module"></script>
+  <script src="./custom_blocks/variables_get.js" type="module"></script>
+
+  <script src="./custom_blocks/oop_test.js" type="module"></script>
+
+  <!-- Load custom generator stubs -->
+  <script src="./custom_generator/lists_push.js" type="module"></script>
+  <script src="./custom_generator/oop_class.js" type="module"></script>
+  <script src="./custom_generator/oop_create.js" type="module"></script>
+  <script src="./custom_generator/oop_getnoreturn_variable.js" type="module"></script>
+  <script src="./custom_generator/oop_getreturn_variable.js" type="module"></script>
+  <script src="./custom_generator/oop_method_return.js" type="module"></script>
+  <script src="./custom_generator/oop_set_variable.js" type="module"></script>
+  <script src="./custom_generator/oop_this.js" type="module"></script>
+  <script src="./custom_generator/text_print.js" type="module"></script>
+  <script src="./custom_generator/variables_define.js" type="module"></script>
+  <script src="./custom_generator/variables_get.js" type="module"></script>
+
+  <script src="./custom_generator/oop_methods.js" type="module"></script>
+
+  <link rel="stylesheet" href="./style.css" type="text/css">
+</head>
+<body>
+  <div class="header">
+    <div class="header-element">
+      <img class="logo" src="/logo.png" alt="logo">
+    </div>
+    <div class="header-element">
+      <button class="button" id="saveProject" type="button">Save Project...</button>
+      <button class="button" onclick="document.getElementById('loadProject').click()">Load Project...</button>
+      <input class="button" style="display: none;" id="loadProject" type="file">
+    </div>
+    <div class="header-element">
+      <button class="button" id="showCode" type="button">Show JavaScript</button>
+      <button class="button" id="runCode" type="button">Run 'Main'</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Tab links -->
+    <div class="tab" id="tab">
+      <button class="tablinks" id="NewClass" title="Create a new class...">+</button>
+    </div>
+
+    <!-- Tab content -->
+    <div class="tabframe" id="tabframe"></div>
+  </div>
+
+  <script src="./plugins/block-shareable-procedures.js" type="module"></script>
+  <script type="module">
+    import { generateWorkspace, runCode, showCode, workspaces, updateToolbox, removeCategory, renameCategory } from "./plugins/block-shareable-procedures.js";
+    import { loadVariables, variables } from "./custom_categories/oop_variables.js";
+
+    /**
+     * Function to switch between workspace tabs.
+     * @param workspaceName
+     */
+    function openWorkspace(workspaceName) {
+      // Declare all variables
+      let i, tabcontent, tablinks;
+
+      updateToolbox();
+      // Get all elements with class="tabcontent" and hide them
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+
+      // Get all elements with class="tablinks" and remove the class "active"
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+
+      // Show the current tab, and add an "active" class to the button that opened the tab
+      document.getElementById("Content" + workspaceName).style.display = "block";
+      document.getElementById(workspaceName).className += " active";
+
+      // Trigger window resize event because otherwise the workspace won't open properly.
+      window.dispatchEvent(new Event("resize"));
+    }
+
+    /**
+     * Asks user for a workspace name and checks if the given name is legal to use.
+     * @returns Name for the workspace or undefined, if user cancelled prompt.
+     */
+    function getLegalWorkspaceNameFromUser() {
+      let legalName = false;
+      let name = "";
+
+      while (!legalName) {
+        // Open prompt to ask user for a name.
+        name = window.prompt("Enter class name:\n\n", "");
+
+        // Check if user provided a name.  Cancel this function if not.
+        if (!name) {
+          return;
+        }
+        // Check if this is a valid name.
+        let regex = /^[a-zA-Z0-9]*$/;
+        if (!regex.test(name)) {
+          alert("Illegal name. Workspace names should only consist of alphanumeric characters.");
+          continue;
+        }
+        // Check if the first character is in upper case.
+        regex = /[A-Z\s]+/;
+        if (!regex.test(name.charAt(0))) {
+          alert("Illegal name. Workspace name must begin with an upper case character.");
+          continue;
+        }
+        legalName = true;
+        // Does this name already exist?
+        for (const workspace of workspaces) {
+          if (name === getNameOfWorkspace(workspace)) {
+            alert("A workspace with this name does already exist. Choose a different name.");
+            legalName = false;
+            break;
+          }
+        }
+      }
+      return name;
+    }
+
+    /**
+     * Asks user for a new class name that should be created.
+     */
+    function addWorkspace() {
+      const name = getLegalWorkspaceNameFromUser();
+      // Don't create a new workspace, if no name was provided.
+      if (!name) return;
+      createWorkspace(name);
+    }
+
+    /**
+     * Creates the HTML elements needed to generate a new Blockly workspace.
+     *
+     * @param name Name of the new workspace
+     */
+    function createWorkspace(name) {
+      // Create new button that will open up the new workspace when clicked.
+      let newClassButton = document.createElement("button");
+      newClassButton.className = "tablinks";
+      newClassButton.id = name;
+      newClassButton.innerHTML = name;
+      document.getElementById("tab").appendChild(newClassButton);
+
+      // Create the tab content.
+      let newClass = document.createElement("div");
+      newClass.className = "tabcontent";
+      newClass.id = "Content" + name;
+      newClass.innerHTML = "<div class='blockly-div' id='blockly" + name + "'></div>";
+      document.getElementById("tabframe").appendChild(newClass);
+
+      // Generate Blockly workspace.
+      generateWorkspace(name);
+      updateToolbox();
+
+      // Open new workspace.
+      document.getElementById(name).click();
+    }
+
+    /**
+     * Returns the name of the requested workspace.
+     *
+     * @param workspace The workspace of which the name is requested.
+     * @returns {string} The name of the workspace.
+     */
+    function getNameOfWorkspace(workspace) {
+      return workspace.injectionDiv.parentElement.id.replace("blockly", "");
+    }
+
+    /**
+     * Generates a save file to save the given states of all Blockly workspaces.
+     *
+     * @param filename Name of the file.
+     * @param fileExt File extension (should always be 'json'!).
+     * @param state The state to save.
+     */
+    function saveProject(filename, fileExt, state) {
+      function dataUrl(state) {
+        return "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+      }
+      const downloadLink = document.createElement("a");
+      downloadLink.href = dataUrl(state);
+      downloadLink.download = filename + "." + fileExt;
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+
+    /**
+     * Prompts the user to rename a workspace.
+     *
+     * @param oldName The old name of the workspace that should be renamed.
+     */
+    function renameWorkspace(oldName) {
+      const newName = getLegalWorkspaceNameFromUser();
+      if (!newName) return;
+
+      document.getElementById(oldName).innerHTML = newName;
+      document.getElementById(oldName).id = newName;
+      document.getElementById('blockly' + oldName).id = 'blockly' + newName;
+      document.getElementById('Content' + oldName).id = 'Content' + newName;
+
+      renameCategory(oldName, newName)
+
+      updateToolbox()
+
+      // Find renamed workspace.
+      for (const workspace of workspaces) {
+        if (getNameOfWorkspace(workspace) === newName) {
+          // Change field 'NAME' of any constructor blocks to show the new workspace name.
+          for (const block of workspace.getAllBlocks(false)) {
+            if (block.type === "oop_createconstructor") {
+              block.setFieldValue(newName, 'NAME');
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    /**
+     * Gets confirmation from user before deleting a workspace.
+     *
+     * @param workspaceName Name of the workspace that should be deleted.
+     */
+    function deleteWorkspaceByUser(workspaceName) {
+      const confirmation = confirm(`Do really want to delete '${workspaceName}'? This action cannot be undone.`);
+      if (!confirmation) {
+        return;
+      }
+      removeCategory(workspaceName);
+      deleteWorkspace(workspaceName);
+      updateToolbox();
+    }
+
+    /**
+     * Deletes the given workspace.
+     *
+     * @param workspaceName Name of the workspace that should be deleted.
+     */
+    function deleteWorkspace(workspaceName) {
+      if (document.getElementById(workspaceName).classList.contains("active")) {
+        openWorkspace("Main");
+      }
+      workspaces.splice(workspaces.indexOf(workspaces.find(workspace => workspace.injectionDiv.parentElement.id === "blockly" + workspaceName)), 1);
+      document.getElementById(workspaceName).parentElement.removeChild(document.getElementById(workspaceName));
+      document.getElementById("Content" + workspaceName).parentElement.removeChild(document.getElementById("Content" + workspaceName));
+    }
+
+    // EVENT LISTENERS =============================================
+
+    // Starts the process of creating a new workspace.
+    document.getElementById("tab").addEventListener("click", function(evt) {
+      if (evt.target && evt.target.className === "tablinks" && evt.target.id === "NewClass") {
+        addWorkspace();
+      }
+    });
+
+    // Create 'Main' workspace when document is loaded.
+    document.addEventListener('DOMContentLoaded', function() {
+      createWorkspace("Main");
+    });
+
+    // EventListener for switching between workspace tabs.
+    document.getElementById("tab").addEventListener("click", function(evt) {
+      if (evt.target && evt.target.className === "tablinks" && evt.target.id !== "NewClass") {
+        openWorkspace(evt.target.id);
+      }
+    });
+
+    // EventListener for showing the generated JavaScript code.
+    document.getElementById("showCode").addEventListener("click", function() {
+      showCode();
+    });
+
+    // EventListener for executing the generated JavaScript code.
+    document.getElementById("runCode").addEventListener("click", function() {
+      runCode();
+    });
+
+    // EventListener for saving the current state of all workspaces.
+    document.getElementById("saveProject").addEventListener("click", () => {
+      const saves = [];
+      for (let i = 0; i < workspaces.length; i++) {
+        saves.push({
+          name: getNameOfWorkspace(workspaces[i]),
+          content: Blockly.serialization.workspaces.save(workspaces[i]),
+        });
+      }
+      saves.push({
+        variables: variables,
+      })
+      saveProject("MyBlocklyProject", "json", saves);
+    });
+
+    // EventListener for loading a save.
+    let loadProject = document.getElementById("loadProject");
+    function addLoadWorkspaceEventListener(fileButton) {
+      fileButton.addEventListener("change", () => {
+        let files = fileButton.files;
+        if (files.length === 0) return;
+
+        const file = files[0];
+        let reader = new FileReader();
+
+        reader.onload = (e) => {
+          const file = e.target.result;
+          const saves = JSON.parse(file.toString());
+
+          for (const save of saves) {
+            if (save["variables"]) {
+              loadVariables(save["variables"]);
+              break;
+            }
+            let workspaceExists = false;
+            for (let i = 0; i < workspaces.length; i++) {
+              // If a workspace with that name already exists, load the content of the save into the existing workspace.
+              if (save["name"] === getNameOfWorkspace(workspaces[i])) {
+                workspaceExists = true;
+                Blockly.serialization.workspaces.load(save["content"], workspaces[i]);
+                break;
+              }
+            }
+            // Create a new workspace if no workspace with that name exists and load the content of the save.
+            if (!workspaceExists) {
+              createWorkspace(save["name"]);
+              Blockly.serialization.workspaces.load(save["content"], workspaces[workspaces.length - 1]);
+            }
+          }
+        };
+        reader.onerror = (e) => alert(e.target.error.name);
+        reader.readAsText(file);
+      });
+    }
+    addLoadWorkspaceEventListener(loadProject);
+
+    // Context menu for renaming or deleting an existing workspace.
+    document.addEventListener('DOMContentLoaded', function() {
+      const tab = document.getElementById('tab');
+      const contextMenu = document.createElement('div');
+      contextMenu.classList.add('context-menu');
+      contextMenu.id = "context-menu";
+
+      // EventListener to close context menu when clicked outside the menu.
+      document.addEventListener('click', function (e) {
+        if (document.getElementById('context-menu') && !contextMenu.contains(e.target)) {
+            document.body.removeChild(contextMenu);
+        }
+      });
+
+      tab.addEventListener('contextmenu', function (event) {
+        // Prevents default context menu.
+        event.preventDefault();
+
+        const targetElement = event.target.closest('.tablinks');
+        // Don't show the context menu on the Create New Class button or Main workspace.
+        if (targetElement && targetElement.id !== "NewClass" && targetElement.id !== "Main") {
+          contextMenu.innerHTML = `
+              <div class="context-menu-item" data-action="rename">Rename</div>
+              <div class="context-menu-item" data-action="delete">Delete</div>
+          `;
+          contextMenu.style.left = event.clientX + "px";
+          contextMenu.style.top = event.clientY + "px";
+          document.body.appendChild(contextMenu);
+
+          const contextMenuItems = contextMenu.querySelectorAll('.context-menu-item');
+          contextMenuItems.forEach(function (item) {
+            item.addEventListener('click', function () {
+              const action = this.getAttribute('data-action');
+              const workspaceName = targetElement.textContent;
+              switch (action) {
+                case "rename":
+                  renameWorkspace(workspaceName);
+                  break;
+                case "delete":
+                  deleteWorkspaceByUser(workspaceName);
+                  break;
+                default: break;
+              }
+              // Remove context menu when option got clicked.
+              if (document.getElementById('context-menu')) {
+                document.body.removeChild(contextMenu);
+              }
+            });
+          });
+        }
+      });
+    });
+
+  </script>
+</body>
+</html>
